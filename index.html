@@ -328,6 +328,7 @@
           <div class="field">
             <label>Valor total (R$)</label>
             <input type="text" inputmode="decimal" id="expAmount" placeholder="0,00" required>
+            <div id="amountPreview" style="font-size:11.5px; color:#6b6455; margin-top:3px;"></div>
           </div>
           <div id="cardOnlyFields">
             <div class="field">
@@ -442,7 +443,7 @@
 
   function parseAmount(str){
     if (typeof str !== "string") return NaN;
-    let s = str.trim();
+    let s = str.trim().replace(/[^\d.,-]/g, ""); // remove R$, espaços e qualquer coisa que não seja número/vírgula/ponto
     if (s.includes(",") && s.includes(".")){
       // "1.234,56" -> ponto é separador de milhar, vírgula é decimal
       s = s.replace(/\./g, "").replace(",", ".");
@@ -830,6 +831,7 @@
     $("expDate").value = new Date().toISOString().slice(0,10);
     $("expInstallments").value = 1;
     setPayType("cartao");
+    $("amountPreview").textContent = "";
     renderAll();
   }
 
@@ -847,6 +849,7 @@
     $("expenseFormTitle").textContent = "Editar despesa";
     $("expenseSubmitBtn").textContent = "Salvar alterações";
     $("expenseCancelBtn").style.display = "inline-block";
+    updateAmountPreview();
     $("expDesc").scrollIntoView({ behavior:"smooth", block:"center" });
   }
 
@@ -856,6 +859,7 @@
     $("expDate").value = new Date().toISOString().slice(0,10);
     $("expInstallments").value = 1;
     setPayType("cartao");
+    $("amountPreview").textContent = "";
     $("expenseFormTitle").textContent = "Adicionar despesa";
     $("expenseSubmitBtn").textContent = "Adicionar despesa";
     $("expenseCancelBtn").style.display = "none";
@@ -887,8 +891,28 @@
     $("filterCard").addEventListener("change", renderLedger);
     $("filterCategory").addEventListener("change", renderLedger);
     document.querySelectorAll('input[name="payType"]').forEach(r => r.addEventListener("change", updatePayToggleUI));
+    document.querySelectorAll('input[type="number"]').forEach(inp => {
+      inp.addEventListener("wheel", () => inp.blur(), { passive: true });
+    });
+    $("expAmount").addEventListener("input", updateAmountPreview);
+    $("expInstallments").addEventListener("input", updateAmountPreview);
     loadData();
   });
+
+  function updateAmountPreview(){
+    const amount = parseAmount($("expAmount").value);
+    const installments = parseInt($("expInstallments").value, 10) || 1;
+    const preview = $("amountPreview");
+    if (isNaN(amount) || amount <= 0){
+      preview.textContent = "";
+      return;
+    }
+    if (installments > 1 && getSelectedPayType() === "cartao"){
+      preview.textContent = `= ${fmt(amount)} em ${installments}x de ${fmt(amount/installments)}`;
+    } else {
+      preview.textContent = `= ${fmt(amount)}`;
+    }
+  }
 })();
 </script>
 </body>
