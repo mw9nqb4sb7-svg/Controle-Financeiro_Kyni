@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Livro-Caixa — Controle Financeiro</title>
+<style>
+  :root{
+    --bg: #10151a;
+    --bg-alt: #161c22;
+    --surface: #1c242b;
+    --surface-2: #212a32;
+    --paper: #f2ede0;
+    --paper-dark: #e6dfcc;
+    --ink: #26231d;
+    --text: #e9e4d8;
+    --text-dim: #97a1a8;
+    --gold: #c9a227;
+    --gold-bright: #e2bd44;
+    --green: #5c8a4c;
+    --red: #c1544c;
+    --border: rgba(233,228,216,0.10);
+    --border-strong: rgba(233,228,216,0.18);
+  }
+
+  *{ box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body{
+    background-image:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(201,162,39,0.07), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(79,124,66,0.06), transparent 55%);
+  }
+
+  .wrap{ max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    display:flex; align-items:flex-end; justify-content:space-between; gap: 24px;
+    padding: 34px 8px 26px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 30px;
+    animation: fadeUp .5s ease both;
+  }
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+  .hero-title{
+    font-family: Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    font-size: 40px;
+    letter-spacing: 0.2px;
+    margin: 0 0 6px;
+    color: var(--text);
+  }
+  .hero-sub{ margin:0; color: var(--text-dim); font-size: 14px; letter-spacing: 0.3px; }
+
+  .stamp{
+    flex-shrink:0;
+    width: 108px; height: 108px;
+    border-radius: 50%;
+    border: 2px dashed var(--gold);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transform: rotate(-7deg);
+    color: var(--gold-bright);
+    text-align:center;
+    line-height:1.1;
+  }
+  .stamp .stamp-label{ font-size:9px; letter-spacing: 1.5px; text-transform:uppercase; opacity:0.85; margin-bottom:2px; }
+  .stamp .stamp-value{ font-family: Georgia, serif; font-style:italic; font-size: 22px; font-weight:bold; }
+  .stamp .stamp-sub{ font-size:9px; letter-spacing: 0.5px; opacity:0.75; margin-top:2px; }
+
+  /* ---------- LAYOUT ---------- */
+  .layout{ display:grid; grid-template-columns: 320px 1fr; gap: 26px; align-items:start; }
+  @media (max-width: 880px){ .layout{ grid-template-columns: 1fr; } }
+
+  .stack{ display:flex; flex-direction:column; gap: 20px; }
+
+  /* ---------- INDEX CARD (forms) ---------- */
+  .index-card{
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 3px;
+    padding: 20px 20px 22px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.28), 0 1px 0 rgba(255,255,255,0.4) inset;
+    position: relative;
+  }
+  .index-card::before{
+    content:"";
+    position:absolute; left:20px; right:20px; top:52px;
+    height:1px; background: rgba(38,35,29,0.12);
+    box-shadow: 0 22px 0 rgba(38,35,29,0.10), 0 44px 0 rgba(38,35,29,0.10), 0 66px 0 rgba(38,35,29,0.08);
+    pointer-events:none;
+  }
+  .index-card h2{
+    font-family: Georgia, serif; font-style: italic; font-weight:normal;
+    font-size: 19px; margin: 0 0 14px; color: var(--ink);
+    position:relative; z-index:1;
+  }
+  .index-card .field{ margin-bottom: 11px; position:relative; z-index:1; }
+  .index-card label{
+    display:block; font-size: 10.5px; text-transform:uppercase; letter-spacing:0.6px;
+    color: #6b6455; margin-bottom: 4px; font-weight:600;
+  }
+  .index-card input, .index-card select{
+    width:100%; padding: 8px 9px; border: 1px solid rgba(38,35,29,0.22);
+    border-radius: 3px; background: rgba(255,255,255,0.55); color: var(--ink);
+    font-size: 14px; font-family: inherit;
+  }
+  .index-card input:focus-visible, .index-card select:focus-visible{
+    outline: 2px solid var(--gold); outline-offset: 1px;
+  }
+  .row-2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .pay-toggle{ display:flex; gap:8px; position:relative; z-index:1; }
+  .pay-pill{
+    flex:1; text-align:center; font-size:12.5px; font-weight:600; cursor:pointer;
+    padding: 8px 6px; border-radius:4px; border:1px solid rgba(38,35,29,0.22);
+    background: rgba(255,255,255,0.35); color:#6b6455; transition: all .12s ease;
+  }
+  .pay-pill input{ display:none; }
+  .pay-pill.active{ background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .swatches{ display:flex; gap: 8px; margin-top: 2px; position:relative; z-index:1; }
+  .swatch{
+    width: 24px; height: 24px; border-radius:50%; cursor:pointer;
+    border: 2px solid transparent; transition: transform .12s ease;
+  }
+  .swatch.selected{ border-color: var(--ink); transform: scale(1.12); }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    border:none; cursor:pointer; font-family:inherit; font-weight:600;
+    font-size: 13.5px; letter-spacing:0.2px; border-radius: 4px;
+    padding: 10px 16px; transition: transform .12s ease, filter .12s ease;
+  }
+  .btn:hover{ filter: brightness(1.08); }
+  .btn:active{ transform: scale(0.98); }
+  .btn-primary{ background: var(--ink); color: var(--paper); width:100%; margin-top: 6px; position:relative; z-index:1; }
+  .btn-gold{ background: var(--gold); color: #1b1204; }
+
+  /* ---------- SECTIONS ---------- */
+  section.panel{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 22px 22px 24px;
+    margin-bottom: 22px;
+  }
+  section.panel h2{
+    font-family: Georgia, serif; font-style: italic; font-weight:normal;
+    font-size: 20px; margin: 0 0 4px; color:var(--text);
+  }
+  .panel-sub{ font-size: 12.5px; color: var(--text-dim); margin: 0 0 18px; }
+
+  /* stat tiles */
+  .stats{ display:grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
+  @media (max-width:880px){ .stats{ grid-template-columns: repeat(2,1fr); } }
+  @media (max-width:480px){ .stats{ grid-template-columns: 1fr; } }
+  .stat{
+    background: var(--surface); border:1px solid var(--border); border-radius:6px;
+    padding: 16px 18px;
+  }
+  .stat .k{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-dim); margin-bottom:8px; }
+  .stat .v{ font-family: 'SF Mono', Consolas, Monaco, monospace; font-size: 24px; color: var(--gold-bright); }
+  .stat .v.red{ color: var(--red); }
+  .stat .v.green{ color: #86b477; }
+
+  /* cards grid */
+  .cards-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 16px; }
+  .card-tile{
+    position:relative; border-radius: 10px; padding: 18px 16px 16px;
+    color: #fff; overflow:hidden; min-height: 132px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .card-tile:hover{ transform: translateY(-4px); box-shadow: 0 14px 26px rgba(0,0,0,0.32); }
+  .card-tile::after{
+    content:""; position:absolute; inset:0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.14), rgba(0,0,0,0.18) 70%);
+    pointer-events:none;
+  }
+  .card-tile .cname{ font-family: Georgia, serif; font-style:italic; font-size:18px; position:relative; z-index:1; }
+  .card-tile .camount{ font-family:'SF Mono',Consolas,monospace; font-size:13px; opacity:0.92; position:relative; z-index:1; margin-top:6px;}
+  .card-tile .cdue{
+    position:relative; z-index:1; align-self:flex-end;
+    width:52px; height:52px; border-radius:50%;
+    border: 1.5px dashed rgba(255,255,255,0.75);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transform: rotate(-8deg); font-size:10px; letter-spacing:0.3px; text-align:center; line-height:1.1;
+  }
+  .card-tile .cdue b{ font-size:16px; font-family: Georgia, serif; }
+  .card-actions{
+    position:absolute; top:8px; right:8px; z-index:2; display:flex; gap:6px;
+  }
+  .card-actions button{
+    background:rgba(0,0,0,0.35); color:#fff; border:none; width:22px; height:22px;
+    border-radius:50%; cursor:pointer; font-size:11px; line-height:1;
+    opacity:0; transition: opacity .15s ease, background .15s ease;
+  }
+  .card-tile:hover .card-actions button{ opacity:1; }
+  .card-actions button:hover{ background:rgba(0,0,0,0.55); }
+
+  .form-head{ display:flex; align-items:baseline; justify-content:space-between; position:relative; z-index:1; }
+  .cancel-edit{
+    background:none; border:none; cursor:pointer; color:#8a5a1f; font-size:11.5px;
+    text-decoration: underline; padding:0; margin: 0 0 12px;
+  }
+
+  .empty{
+    border: 1px dashed var(--border-strong); border-radius: 8px;
+    padding: 26px 20px; text-align:center; color: var(--text-dim); font-size: 13.5px;
+  }
+
+  /* installment stubs */
+  .stub{
+    background: var(--bg-alt); border: 1px solid var(--border); border-top: 2px dashed var(--border-strong);
+    border-radius: 0 0 8px 8px; padding: 14px 16px; margin-bottom: 12px;
+    display:grid; grid-template-columns: 1.4fr 1fr auto auto; gap: 14px; align-items:center;
+  }
+  @media (max-width: 760px){ .stub{ grid-template-columns: 1fr 1fr; } }
+  .stub .desc{ font-size:14px; }
+  .stub .desc .cat{ font-size:11px; color:var(--text-dim); }
+  .stub select{
+    background: var(--surface-2); color: var(--text); border:1px solid var(--border-strong);
+    border-radius:4px; padding:6px 8px; font-size:12.5px; font-family:inherit;
+  }
+  .progress-wrap{ display:flex; flex-direction:column; gap:5px; }
+  .progress-track{ background: rgba(255,255,255,0.08); border-radius:6px; height:6px; overflow:hidden; }
+  .progress-fill{ background: linear-gradient(90deg, var(--gold), var(--gold-bright)); height:100%; }
+  .progress-label{ font-size:11px; color:var(--text-dim); font-family:'SF Mono',monospace; }
+  .stub .amount{ text-align:right; font-family:'SF Mono',Consolas,monospace; }
+  .stub .amount .big{ font-size:15px; color:var(--gold-bright); }
+  .stub .amount .small{ font-size:10.5px; color:var(--text-dim); }
+
+  /* ledger table */
+  .ledger-filters{ display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .ledger-filters select{
+    background: var(--surface-2); color: var(--text); border:1px solid var(--border-strong);
+    border-radius:4px; padding:7px 10px; font-size:12.5px; font-family:inherit;
+  }
+  table.ledger{ width:100%; border-collapse: collapse; }
+  table.ledger th{
+    text-align:left; font-size: 10.5px; text-transform:uppercase; letter-spacing:0.6px;
+    color: var(--text-dim); padding: 8px 10px; border-bottom: 1px solid var(--border-strong);
+  }
+  table.ledger td{ padding: 10px 10px; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  table.ledger tr:hover td{ background: rgba(255,255,255,0.02); }
+  .dot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .amt-cell{ font-family:'SF Mono',Consolas,monospace; text-align:right; }
+  .del-row{ background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:13px; }
+  .del-row:hover{ color: var(--red); }
+  .edit-row{ background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:13px; margin-right:8px; }
+  .edit-row:hover{ color: var(--gold-bright); }
+  .badge-installment{ font-size:10px; color:var(--gold-bright); background:rgba(201,162,39,0.14); padding:2px 6px; border-radius:10px; margin-left:6px; }
+
+  ::selection{ background: rgba(201,162,39,0.35); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div>
+      <h1 class="hero-title">Livro-Caixa</h1>
+      <p class="hero-sub">Controle de despesas, cartões e parcelas — tudo num só lugar.</p>
+    </div>
+    <div class="stamp" id="heroStamp">
+      <span class="stamp-label">Próx. venc.</span>
+      <span class="stamp-value" id="heroStampDay">—</span>
+      <span class="stamp-sub" id="heroStampCard">sem cartões</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- SIDEBAR: FORMS -->
+    <div class="stack">
+
+      <div class="index-card">
+        <div class="form-head"><h2 id="cardFormTitle">Adicionar cartão</h2></div>
+        <button type="button" class="cancel-edit" id="cardCancelBtn" style="display:none" onclick="FIN.cancelCardEdit()">Cancelar edição</button>
+        <form id="cardForm">
+          <div class="field">
+            <label>Nome do cartão</label>
+            <input type="text" id="cardName" placeholder="Ex.: Nubank, Inter, Itaú..." required>
+          </div>
+          <div class="field">
+            <label>Dia do vencimento</label>
+            <input type="number" id="cardDueDay" min="1" max="31" placeholder="Ex.: 10" required>
+          </div>
+          <div class="field">
+            <label>Cor</label>
+            <div class="swatches" id="swatches"></div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="cardSubmitBtn">Adicionar cartão</button>
+        </form>
+      </div>
+
+      <div class="index-card">
+        <div class="form-head"><h2 id="expenseFormTitle">Adicionar despesa</h2></div>
+        <button type="button" class="cancel-edit" id="expenseCancelBtn" style="display:none" onclick="FIN.cancelExpenseEdit()">Cancelar edição</button>
+        <form id="expenseForm">
+          <div class="field">
+            <label>Descrição</label>
+            <input type="text" id="expDesc" placeholder="Ex.: Supermercado, Uber, Salário..." required>
+          </div>
+          <div class="field">
+            <label>Forma de pagamento</label>
+            <div class="pay-toggle">
+              <label class="pay-pill active" id="payPillCartao">
+                <input type="radio" name="payType" value="cartao" checked> Cartão
+              </label>
+              <label class="pay-pill" id="payPillDinheiro">
+                <input type="radio" name="payType" value="dinheiro"> Dinheiro / Pix
+              </label>
+            </div>
+          </div>
+          <div class="field">
+            <label>Valor total (R$)</label>
+            <input type="text" inputmode="decimal" id="expAmount" placeholder="0,00" required>
+          </div>
+          <div id="cardOnlyFields">
+            <div class="field">
+              <label>Parcelas</label>
+              <input type="number" id="expInstallments" min="1" max="60" value="1" required>
+            </div>
+            <div class="field">
+              <label>Cartão</label>
+              <select id="expCard"></select>
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Data</label>
+              <input type="date" id="expDate" required>
+            </div>
+            <div class="field">
+              <label>Categoria</label>
+              <select id="expCategory">
+                <option value="Alimentação">🍽️ Alimentação</option>
+                <option value="Transporte">🚗 Transporte</option>
+                <option value="Moradia">🏠 Moradia</option>
+                <option value="Lazer">🎬 Lazer</option>
+                <option value="Saúde">💊 Saúde</option>
+                <option value="Educação">📚 Educação</option>
+                <option value="Compras">🛍️ Compras</option>
+                <option value="Outros">📎 Outros</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="expenseSubmitBtn">Adicionar despesa</button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div>
+      <div class="stats">
+        <div class="stat">
+          <div class="k">A pagar este mês</div>
+          <div class="v" id="statMonth">R$ 0,00</div>
+        </div>
+        <div class="stat">
+          <div class="k">Total em parcelas em aberto</div>
+          <div class="v red" id="statOpen">R$ 0,00</div>
+        </div>
+        <div class="stat">
+          <div class="k">Cartões cadastrados</div>
+          <div class="v green" id="statCards">0</div>
+        </div>
+        <div class="stat">
+          <div class="k">Dinheiro / Pix este mês</div>
+          <div class="v" id="statCash" style="color:#86b477">R$ 0,00</div>
+        </div>
+      </div>
+
+      <section class="panel">
+        <h2>Meus cartões</h2>
+        <p class="panel-sub">Cada cartão carimba seu próprio dia de vencimento.</p>
+        <div class="cards-grid" id="cardsGrid"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Parcelas ativas</h2>
+        <p class="panel-sub">Compras parceladas em andamento — troque o cartão a qualquer momento.</p>
+        <div id="installmentsList"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Extrato geral</h2>
+        <p class="panel-sub">Todas as despesas lançadas, das mais recentes às mais antigas.</p>
+        <div class="ledger-filters">
+          <select id="filterCard"><option value="all">Todos os cartões</option><option value="cash">💵 Dinheiro / Pix</option></select>
+          <select id="filterCategory">
+            <option value="all">Todas as categorias</option>
+            <option value="Alimentação">Alimentação</option>
+            <option value="Transporte">Transporte</option>
+            <option value="Moradia">Moradia</option>
+            <option value="Lazer">Lazer</option>
+            <option value="Saúde">Saúde</option>
+            <option value="Educação">Educação</option>
+            <option value="Compras">Compras</option>
+            <option value="Outros">Outros</option>
+          </select>
+        </div>
+        <div id="ledgerWrap"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const SWATCHES = ["#c9a227","#3f7d7a","#7a4f6d","#a8532e","#4a5a8a","#4f7942"];
+  const CATEGORY_ICONS = {
+    "Alimentação":"🍽️","Transporte":"🚗","Moradia":"🏠","Lazer":"🎬",
+    "Saúde":"💊","Educação":"📚","Compras":"🛍️","Outros":"📎"
+  };
+
+  let state = { cards: [], expenses: [] };
+  let selectedSwatch = SWATCHES[0];
+  let editingCardId = null;
+  let editingExpenseId = null;
+  const STORAGE_KEY = "finance_data";
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (v) => (v || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+  function parseAmount(str){
+    if (typeof str !== "string") return NaN;
+    let s = str.trim();
+    if (s.includes(",") && s.includes(".")){
+      // "1.234,56" -> ponto é separador de milhar, vírgula é decimal
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else if (s.includes(",")){
+      // "150,50" -> vírgula é decimal
+      s = s.replace(",", ".");
+    }
+    return parseFloat(s);
+  }
+
+  function formatAmountForInput(v){
+    return (v || 0).toFixed(2).replace(".", ",");
+  }
+
+  function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+
+  function nextDueDateForCard(card){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = Math.min(card.dueDay, daysInMonth(today.getFullYear(), today.getMonth()));
+    let candidate = new Date(today.getFullYear(), today.getMonth(), d);
+    if (candidate < today){
+      const nm = today.getMonth()+1;
+      const y = today.getFullYear() + (nm>11?1:0);
+      const mm = nm % 12;
+      const d2 = Math.min(card.dueDay, daysInMonth(y, mm));
+      candidate = new Date(y, mm, d2);
+    }
+    return candidate;
+  }
+
+  function formatDate(d){
+    return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+  }
+
+  function computeInstallmentInfo(exp){
+    const total = exp.installments;
+    if (total <= 1) return null;
+    const purchase = new Date(exp.date + "T00:00:00");
+    const today = new Date(); today.setHours(0,0,0,0);
+    let idx = (today.getFullYear()-purchase.getFullYear())*12 + (today.getMonth()-purchase.getMonth()) + 1;
+    if (idx < 1) idx = 1;
+    const finished = idx > total;
+    const current = finished ? total : idx;
+    const installmentValue = exp.amount / total;
+    const remainingCount = finished ? 0 : (total - current + 1);
+    const remainingAmount = remainingCount * installmentValue;
+    return { total, current, finished, installmentValue, remainingAmount, remainingCount };
+  }
+
+  async function loadData(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw){
+        const parsed = JSON.parse(raw);
+        state = { cards: parsed.cards || [], expenses: parsed.expenses || [] };
+      }
+    }catch(e){
+      // sem dados salvos ainda, mantém os padrões
+    }
+    renderAll();
+  }
+
+  async function saveData(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }catch(e){
+      console.error("Falha ao salvar dados:", e);
+      alert("Não foi possível salvar os dados neste navegador. Verifique se o modo anônimo/privado está desativado.");
+    }
+  }
+
+  function buildSwatches(){
+    const el = $("swatches");
+    el.innerHTML = SWATCHES.map((c,i) =>
+      `<div class="swatch${c===selectedSwatch?' selected':''}" style="background:${c}" data-color="${c}"></div>`
+    ).join("");
+    el.querySelectorAll(".swatch").forEach(sw => {
+      sw.addEventListener("click", () => {
+        selectedSwatch = sw.dataset.color;
+        buildSwatches();
+      });
+    });
+  }
+
+  function populateCardSelects(){
+    const options = state.cards.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    $("expCard").innerHTML = state.cards.length
+      ? options
+      : `<option value="">Adicione um cartão primeiro</option>`;
+    $("filterCard").innerHTML = `<option value="all">Todos os cartões</option><option value="cash">💵 Dinheiro / Pix</option>` + options;
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function cardById(id){ return state.cards.find(c => c.id === id); }
+
+  function getSelectedPayType(){
+    const el = document.querySelector('input[name="payType"]:checked');
+    return el ? el.value : "cartao";
+  }
+
+  function setPayType(type){
+    document.querySelector(`input[name="payType"][value="${type}"]`).checked = true;
+    updatePayToggleUI();
+  }
+
+  function updatePayToggleUI(){
+    const type = getSelectedPayType();
+    $("payPillCartao").classList.toggle("active", type === "cartao");
+    $("payPillDinheiro").classList.toggle("active", type === "dinheiro");
+    $("cardOnlyFields").style.display = type === "cartao" ? "block" : "none";
+    $("expCard").required = type === "cartao";
+  }
+
+  // ---------- RENDER: HERO STAMP ----------
+  function renderHeroStamp(){
+    if (state.cards.length === 0){
+      $("heroStampDay").textContent = "—";
+      $("heroStampCard").textContent = "sem cartões";
+      return;
+    }
+    let soonest = null;
+    state.cards.forEach(c => {
+      const d = nextDueDateForCard(c);
+      if (!soonest || d < soonest.date) soonest = { date: d, card: c };
+    });
+    $("heroStampDay").textContent = soonest.date.getDate();
+    $("heroStampCard").textContent = soonest.card.name;
+  }
+
+  // ---------- RENDER: STATS ----------
+  function renderStats(){
+    const today = new Date();
+    let monthTotal = 0;
+    let openTotal = 0;
+    let cashMonth = 0;
+
+    state.expenses.forEach(exp => {
+      const info = computeInstallmentInfo(exp);
+      if (info){
+        openTotal += info.remainingAmount;
+        if (!info.finished) monthTotal += info.installmentValue;
+      } else {
+        const d = new Date(exp.date + "T00:00:00");
+        const isThisMonth = d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth();
+        if (isThisMonth){
+          monthTotal += exp.amount;
+          if (!exp.cardId) cashMonth += exp.amount;
+        }
+      }
+    });
+
+    $("statMonth").textContent = fmt(monthTotal);
+    $("statOpen").textContent = fmt(openTotal);
+    $("statCards").textContent = state.cards.length;
+    $("statCash").textContent = fmt(cashMonth);
+  }
+
+  // ---------- RENDER: CARDS GRID ----------
+  function renderCards(){
+    const grid = $("cardsGrid");
+    if (state.cards.length === 0){
+      grid.innerHTML = `<div class="empty">Nenhum cartão ainda. Adicione o primeiro cartão ao lado para começar a lançar despesas.</div>`;
+      return;
+    }
+    grid.innerHTML = state.cards.map(c => {
+      const due = nextDueDateForCard(c);
+      const today = new Date();
+      let monthAmount = 0;
+      state.expenses.filter(e => e.cardId === c.id).forEach(e => {
+        const info = computeInstallmentInfo(e);
+        if (info){
+          if (!info.finished) monthAmount += info.installmentValue;
+        } else {
+          const d = new Date(e.date + "T00:00:00");
+          if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()){
+            monthAmount += e.amount;
+          }
+        }
+      });
+      return `
+        <div class="card-tile" style="background:${c.color}">
+          <div class="card-actions">
+            <button title="Editar cartão" onclick="FIN.editCard('${c.id}')">✎</button>
+            <button title="Remover cartão" onclick="FIN.deleteCard('${c.id}')">✕</button>
+          </div>
+          <div class="cname">${escapeHtml(c.name)}</div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div class="camount">${fmt(monthAmount)}<br><span style="font-size:10px;opacity:0.8;">este mês</span></div>
+            <div class="cdue">Vence<br><b>${c.dueDay}</b><span style="opacity:0.85;">${formatDate(due)}</span></div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  // ---------- RENDER: INSTALLMENTS ----------
+  function renderInstallments(){
+    const wrap = $("installmentsList");
+    const active = state.expenses
+      .map(e => ({ exp: e, info: computeInstallmentInfo(e) }))
+      .filter(x => x.info && !x.info.finished)
+      .sort((a,b) => new Date(a.exp.date) - new Date(b.exp.date));
+
+    if (active.length === 0){
+      wrap.innerHTML = `<div class="empty">Nenhuma parcela ativa no momento. Compras parceladas aparecem aqui.</div>`;
+      return;
+    }
+
+    const cardOptions = state.cards.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+
+    wrap.innerHTML = active.map(({exp, info}) => {
+      const card = cardById(exp.cardId);
+      const due = card ? nextDueDateForCard(card) : null;
+      const pct = Math.round((info.current-1)/info.total*100);
+      return `
+        <div class="stub">
+          <div class="desc">
+            ${escapeHtml(exp.description)}
+            <div class="cat">${CATEGORY_ICONS[exp.category]||''} ${escapeHtml(exp.category)}</div>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <div class="progress-label">parcela ${info.current} de ${info.total}${due ? ' · vence ' + formatDate(due) : ''}</div>
+          </div>
+          <select onchange="FIN.reassignCard('${exp.id}', this.value)">
+            ${cardOptions.replace(`value="${exp.cardId}"`, `value="${exp.cardId}" selected`)}
+          </select>
+          <div class="amount">
+            <div class="big">${fmt(info.installmentValue)}</div>
+            <div class="small">restam ${fmt(info.remainingAmount)}</div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  // ---------- RENDER: LEDGER ----------
+  function renderLedger(){
+    const filterCard = $("filterCard").value;
+    const filterCat = $("filterCategory").value;
+
+    let list = state.expenses.slice().sort((a,b) => new Date(b.date) - new Date(a.date));
+    if (filterCard === "cash") list = list.filter(e => !e.cardId);
+    else if (filterCard !== "all") list = list.filter(e => e.cardId === filterCard);
+    if (filterCat !== "all") list = list.filter(e => e.category === filterCat);
+
+    const wrap = $("ledgerWrap");
+    if (list.length === 0){
+      wrap.innerHTML = `<div class="empty">Nenhuma despesa encontrada. Ajuste os filtros ou adicione uma nova despesa.</div>`;
+      return;
+    }
+
+    const rows = list.map(exp => {
+      const card = cardById(exp.cardId);
+      const info = computeInstallmentInfo(exp);
+      const d = new Date(exp.date + "T00:00:00");
+      const cardCell = card
+        ? `<span class="dot" style="background:${card.color}"></span>${escapeHtml(card.name)}`
+        : `<span style="color:var(--text-dim)">💵 Dinheiro / Pix</span>`;
+      return `
+        <tr>
+          <td>${formatDate(d)}</td>
+          <td>${CATEGORY_ICONS[exp.category]||''} ${escapeHtml(exp.description)}${info ? `<span class="badge-installment">${info.current}/${info.total}</span>` : ''}</td>
+          <td>${cardCell}</td>
+          <td class="amt-cell">${fmt(info ? info.installmentValue : exp.amount)}</td>
+          <td>
+            <button class="edit-row" onclick="FIN.editExpense('${exp.id}')" title="Editar">✎</button>
+            <button class="del-row" onclick="FIN.deleteExpense('${exp.id}')" title="Excluir">✕</button>
+          </td>
+        </tr>`;
+    }).join("");
+
+    wrap.innerHTML = `
+      <table class="ledger">
+        <thead><tr><th>Data</th><th>Descrição</th><th>Cartão</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function renderAll(){
+    buildSwatches();
+    populateCardSelects();
+    renderHeroStamp();
+    renderStats();
+    renderCards();
+    renderInstallments();
+    renderLedger();
+  }
+
+  // ---------- ACTIONS ----------
+  // ---------- ACTIONS: CARDS ----------
+  async function addCard(e){
+    e.preventDefault();
+    const name = $("cardName").value.trim();
+    const dueDay = parseInt($("cardDueDay").value, 10);
+    if (!name || !dueDay || dueDay < 1 || dueDay > 31) return;
+
+    if (editingCardId){
+      const card = cardById(editingCardId);
+      if (card){
+        card.name = name;
+        card.dueDay = dueDay;
+        card.color = selectedSwatch;
+      }
+      cancelCardEdit();
+    } else {
+      state.cards.push({ id: uid(), name, dueDay, color: selectedSwatch });
+      selectedSwatch = SWATCHES[(state.cards.length) % SWATCHES.length];
+    }
+    await saveData();
+    $("cardForm").reset();
+    renderAll();
+  }
+
+  function editCard(id){
+    const card = cardById(id);
+    if (!card) return;
+    editingCardId = id;
+    $("cardName").value = card.name;
+    $("cardDueDay").value = card.dueDay;
+    selectedSwatch = card.color;
+    $("cardFormTitle").textContent = "Editar cartão";
+    $("cardSubmitBtn").textContent = "Salvar alterações";
+    $("cardCancelBtn").style.display = "inline-block";
+    buildSwatches();
+    $("cardName").scrollIntoView({ behavior:"smooth", block:"center" });
+  }
+
+  function cancelCardEdit(){
+    editingCardId = null;
+    $("cardForm").reset();
+    $("cardFormTitle").textContent = "Adicionar cartão";
+    $("cardSubmitBtn").textContent = "Adicionar cartão";
+    $("cardCancelBtn").style.display = "none";
+    selectedSwatch = SWATCHES[state.cards.length % SWATCHES.length];
+    buildSwatches();
+  }
+
+  async function deleteCard(id){
+    const hasExpenses = state.expenses.some(e => e.cardId === id);
+    if (hasExpenses){
+      alert("Este cartão tem despesas lançadas. Remova ou reatribua as despesas antes de excluir o cartão.");
+      return;
+    }
+    if (editingCardId === id) cancelCardEdit();
+    state.cards = state.cards.filter(c => c.id !== id);
+    await saveData();
+    renderAll();
+  }
+
+  // ---------- ACTIONS: EXPENSES ----------
+  async function addExpense(e){
+    e.preventDefault();
+    const description = $("expDesc").value.trim();
+    const amount = parseAmount($("expAmount").value);
+    const payType = getSelectedPayType();
+    const isCash = payType === "dinheiro";
+    const installments = isCash ? 1 : (parseInt($("expInstallments").value, 10) || 1);
+    const date = $("expDate").value;
+    const category = $("expCategory").value;
+    const cardId = isCash ? null : $("expCard").value;
+
+    if (!description || isNaN(amount) || amount <= 0 || !date) return;
+    if (!isCash && !cardId) return;
+
+    if (editingExpenseId){
+      const exp = state.expenses.find(x => x.id === editingExpenseId);
+      if (exp){
+        exp.description = description;
+        exp.amount = amount;
+        exp.installments = installments;
+        exp.date = date;
+        exp.category = category;
+        exp.cardId = cardId;
+      }
+      cancelExpenseEdit();
+    } else {
+      state.expenses.push({ id: uid(), description, amount, installments, date, category, cardId });
+    }
+    await saveData();
+    $("expenseForm").reset();
+    $("expDate").value = new Date().toISOString().slice(0,10);
+    $("expInstallments").value = 1;
+    setPayType("cartao");
+    renderAll();
+  }
+
+  function editExpense(id){
+    const exp = state.expenses.find(e => e.id === id);
+    if (!exp) return;
+    editingExpenseId = id;
+    $("expDesc").value = exp.description;
+    $("expAmount").value = formatAmountForInput(exp.amount);
+    $("expInstallments").value = exp.installments;
+    $("expDate").value = exp.date;
+    $("expCategory").value = exp.category;
+    setPayType(exp.cardId ? "cartao" : "dinheiro");
+    if (exp.cardId) $("expCard").value = exp.cardId;
+    $("expenseFormTitle").textContent = "Editar despesa";
+    $("expenseSubmitBtn").textContent = "Salvar alterações";
+    $("expenseCancelBtn").style.display = "inline-block";
+    $("expDesc").scrollIntoView({ behavior:"smooth", block:"center" });
+  }
+
+  function cancelExpenseEdit(){
+    editingExpenseId = null;
+    $("expenseForm").reset();
+    $("expDate").value = new Date().toISOString().slice(0,10);
+    $("expInstallments").value = 1;
+    setPayType("cartao");
+    $("expenseFormTitle").textContent = "Adicionar despesa";
+    $("expenseSubmitBtn").textContent = "Adicionar despesa";
+    $("expenseCancelBtn").style.display = "none";
+  }
+
+  async function deleteExpense(id){
+    if (editingExpenseId === id) cancelExpenseEdit();
+    state.expenses = state.expenses.filter(e => e.id !== id);
+    await saveData();
+    renderAll();
+  }
+
+  async function reassignCard(expenseId, newCardId){
+    const exp = state.expenses.find(e => e.id === expenseId);
+    if (!exp) return;
+    exp.cardId = newCardId;
+    await saveData();
+    renderAll();
+  }
+
+  // expose for inline handlers
+  window.FIN = { deleteCard, editCard, cancelCardEdit, deleteExpense, editExpense, cancelExpenseEdit, reassignCard };
+
+  // ---------- INIT ----------
+  document.addEventListener("DOMContentLoaded", () => {
+    $("expDate").value = new Date().toISOString().slice(0,10);
+    $("cardForm").addEventListener("submit", addCard);
+    $("expenseForm").addEventListener("submit", addExpense);
+    $("filterCard").addEventListener("change", renderLedger);
+    $("filterCategory").addEventListener("change", renderLedger);
+    document.querySelectorAll('input[name="payType"]').forEach(r => r.addEventListener("change", updatePayToggleUI));
+    loadData();
+  });
+})();
+</script>
+</body>
+</html>
