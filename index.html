@@ -650,21 +650,11 @@
     return { installmentsPart, invoicePart, total: installmentsPart + invoicePart };
   }
 
-  // Saldo total em aberto no cartão (parcelas futuras + à vista/fatura ainda não vencidos) — usado para a barra de limite
+  // Saldo usado do limite = apenas o valor que cai na fatura/ciclo atual do cartão
+  // (parcela do mês + à vista/fatura deste ciclo) — uma compra parcelada em maio não deve
+  // ocupar o limite de julho, só a parcela que efetivamente vence agora.
   function cardOpenBalance(card){
-    const today = new Date(); today.setHours(0,0,0,0);
-    let total = 0;
-    state.expenses.filter(e => e.cardId === card.id).forEach(e => {
-      const info = computeInstallmentInfo(e);
-      if (info){
-        total += info.remainingAmount;
-      } else {
-        const due = invoiceDueForDate(new Date(e.date + "T00:00:00"), card);
-        const dueDate = new Date(due.year, due.month, Math.min(card.dueDay, daysInMonth(due.year, due.month)));
-        if (dueDate >= today) total += e.amount;
-      }
-    });
-    return total;
+    return cardCycleBreakdown(card).total;
   }
 
   function getSelectedPayType(){
@@ -749,7 +739,7 @@
       const due = nextDueDateForCard(c);
       const breakdown = cardCycleBreakdown(c);
       const limit = getLimit(c);
-      const openBalance = cardOpenBalance(c);
+      const openBalance = breakdown.total;
       const pct = limit > 0 ? Math.min(100, Math.round((openBalance / limit) * 100)) : 0;
       const barColor = pct >= 90 ? "#e07a6f" : (pct >= 70 ? "#f2d675" : "#ffffff");
       return `
