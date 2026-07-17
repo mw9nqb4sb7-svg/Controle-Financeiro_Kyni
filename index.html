@@ -163,8 +163,9 @@
   .panel-sub{ font-size: 12.5px; color: var(--text-dim); margin: 0 0 18px; }
 
   /* stat tiles */
-  .stats{ display:grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
-  @media (max-width:880px){ .stats{ grid-template-columns: repeat(2,1fr); } }
+  .stats{ display:grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 22px; }
+  @media (max-width:1100px){ .stats{ grid-template-columns: repeat(3,1fr); } }
+  @media (max-width:700px){ .stats{ grid-template-columns: repeat(2,1fr); } }
   @media (max-width:480px){ .stats{ grid-template-columns: 1fr; } }
   .stat{
     background: var(--surface); border:1px solid var(--border); border-radius:6px;
@@ -225,6 +226,11 @@
     padding: 0 12px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
   }
   .invoice-add button:hover{ background: rgba(0,0,0,0.5); }
+
+  .limit-bar-wrap{ position:relative; z-index:1; margin-top:10px; }
+  .limit-bar-track{ background: rgba(255,255,255,0.2); border-radius:6px; height:5px; overflow:hidden; }
+  .limit-bar-fill{ height:100%; border-radius:6px; background:#fff; transition: width .2s ease; }
+  .limit-bar-label{ font-size:10px; opacity:0.85; margin-top:4px; font-family:'SF Mono',Consolas,monospace; }
 
   .form-head{ display:flex; align-items:baseline; justify-content:space-between; position:relative; z-index:1; }
   .cancel-edit{
@@ -314,6 +320,14 @@
             <input type="number" id="cardDueDay" min="1" max="31" placeholder="Ex.: 10" required>
           </div>
           <div class="field">
+            <label>Dia do fechamento da fatura</label>
+            <input type="number" id="cardClosingDay" min="1" max="31" placeholder="Ex.: 3" required>
+          </div>
+          <div class="field">
+            <label>Limite de crédito (R$, opcional)</label>
+            <input type="text" inputmode="decimal" id="cardLimit" placeholder="Ex.: 1.500,00">
+          </div>
+          <div class="field">
             <label>Cor</label>
             <div class="swatches" id="swatches"></div>
           </div>
@@ -385,26 +399,30 @@
     <div>
       <div class="stats">
         <div class="stat">
-          <div class="k">A pagar este mês</div>
-          <div class="v" id="statMonth">R$ 0,00</div>
+          <div class="k">Parcelamentos deste mês</div>
+          <div class="v" id="statInstallmentsMonth">R$ 0,00</div>
+        </div>
+        <div class="stat">
+          <div class="k">Faturas / à vista deste mês</div>
+          <div class="v" id="statInvoiceMonth">R$ 0,00</div>
         </div>
         <div class="stat">
           <div class="k">Total em parcelas em aberto</div>
           <div class="v red" id="statOpen">R$ 0,00</div>
         </div>
         <div class="stat">
-          <div class="k">Cartões cadastrados</div>
-          <div class="v green" id="statCards">0</div>
-        </div>
-        <div class="stat">
           <div class="k">Dinheiro / Pix este mês</div>
           <div class="v" id="statCash" style="color:#86b477">R$ 0,00</div>
+        </div>
+        <div class="stat">
+          <div class="k">Cartões cadastrados</div>
+          <div class="v green" id="statCards">0</div>
         </div>
       </div>
 
       <section class="panel">
         <h2>Meus cartões</h2>
-        <p class="panel-sub">Cada cartão carimba seu próprio dia de vencimento.</p>
+        <p class="panel-sub">Cada cartão tem seu dia de fechamento e vencimento — lançamentos feitos no dia do fechamento (ou depois) entram automaticamente na fatura do mês seguinte.</p>
         <div class="cards-grid" id="cardsGrid"></div>
       </section>
 
@@ -495,12 +513,61 @@
     return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
   }
 
+  // Dado um cartão, retorna o dia de fechamento (com fallback para cartões antigos sem esse campo)
+  function getClosingDay(card){
+    return card.closingDay || card.dueDay;
+  }
+
+  // Dado um cartão, retorna o limite de crédito (0 = sem limite definido)
+  function getLimit(card){
+    return card.limit || 0;
+  }
+
+  // Dada uma data de compra e um cartão, retorna {year, month} do vencimento da fatura
+  // à qual essa compra pertence, considerando o dia de fechamento.
+  // Regra: se o dia da compra for >= dia de fechamento, ela entra na fatura que fecha no
+  // mês seguinte (empurrada um ciclo pra frente).
+  function invoiceDueForDate(date, card){
+    const F = Math.min(getClosingDay(card), daysInMonth(date.getFullYear(), date.getMonth()));
+    let closingMonth = date.getMonth();
+    let closingYear = date.getFullYear();
+    if (date.getDate() >= F){
+      closingMonth += 1;
+      if (closingMonth > 11){ closingMonth = 0; closingYear += 1; }
+    }
+    // se o dia de vencimento for maior que o de fechamento, o vencimento cai no mesmo mês do
+    // fechamento; caso contrário (vencimento "numericamente antes"), cai no mês seguinte.
+    const dueOffset = (card.dueDay > getClosingDay(card)) ? 0 : 1;
+    let dueMonth = closingMonth + dueOffset;
+    let dueYear = closingYear;
+    if (dueMonth > 11){ dueMonth -= 12; dueYear += 1; }
+    return { year: dueYear, month: dueMonth };
+  }
+
+  function monthsDiff(a, b){
+    return (b.year - a.year) * 12 + (b.month - a.month);
+  }
+
+  // O ciclo de referência de um cartão = o (ano,mês) de vencimento da próxima fatura a vencer.
+  function referenceCycle(card){
+    const due = nextDueDateForCard(card);
+    return { year: due.getFullYear(), month: due.getMonth() };
+  }
+
   function computeInstallmentInfo(exp){
     const total = exp.installments;
     if (total <= 1) return null;
+    const card = cardById(exp.cardId);
     const purchase = new Date(exp.date + "T00:00:00");
-    const today = new Date(); today.setHours(0,0,0,0);
-    let idx = (today.getFullYear()-purchase.getFullYear())*12 + (today.getMonth()-purchase.getMonth()) + 1;
+    let idx;
+    if (card){
+      const firstDue = invoiceDueForDate(purchase, card);
+      const ref = referenceCycle(card);
+      idx = monthsDiff(firstDue, ref) + 1;
+    } else {
+      const today = new Date(); today.setHours(0,0,0,0);
+      idx = (today.getFullYear()-purchase.getFullYear())*12 + (today.getMonth()-purchase.getMonth()) + 1;
+    }
     if (idx < 1) idx = 1;
     const finished = idx > total;
     const current = finished ? total : idx;
@@ -516,6 +583,11 @@
       if (raw){
         const parsed = JSON.parse(raw);
         state = { cards: parsed.cards || [], expenses: parsed.expenses || [] };
+        // migração: cartões salvos antes do dia de fechamento/limite existirem
+        state.cards.forEach(c => {
+          if (!c.closingDay) c.closingDay = c.dueDay;
+          if (!c.limit) c.limit = 0;
+        });
       }
     }catch(e){
       // sem dados salvos ainda, mantém os padrões
@@ -561,6 +633,40 @@
 
   function cardById(id){ return state.cards.find(c => c.id === id); }
 
+  // Soma dos valores (parcelamentos + à vista/fatura) que caem no ciclo de referência (próxima fatura) do cartão
+  function cardCycleBreakdown(card){
+    const ref = referenceCycle(card);
+    let installmentsPart = 0;
+    let invoicePart = 0;
+    state.expenses.filter(e => e.cardId === card.id).forEach(e => {
+      const info = computeInstallmentInfo(e);
+      if (info){
+        if (!info.finished) installmentsPart += info.installmentValue;
+      } else {
+        const due = invoiceDueForDate(new Date(e.date + "T00:00:00"), card);
+        if (due.year === ref.year && due.month === ref.month) invoicePart += e.amount;
+      }
+    });
+    return { installmentsPart, invoicePart, total: installmentsPart + invoicePart };
+  }
+
+  // Saldo total em aberto no cartão (parcelas futuras + à vista/fatura ainda não vencidos) — usado para a barra de limite
+  function cardOpenBalance(card){
+    const today = new Date(); today.setHours(0,0,0,0);
+    let total = 0;
+    state.expenses.filter(e => e.cardId === card.id).forEach(e => {
+      const info = computeInstallmentInfo(e);
+      if (info){
+        total += info.remainingAmount;
+      } else {
+        const due = invoiceDueForDate(new Date(e.date + "T00:00:00"), card);
+        const dueDate = new Date(due.year, due.month, Math.min(card.dueDay, daysInMonth(due.year, due.month)));
+        if (dueDate >= today) total += e.amount;
+      }
+    });
+    return total;
+  }
+
   function getSelectedPayType(){
     const el = document.querySelector('input[name="payType"]:checked');
     return el ? el.value : "cartao";
@@ -598,7 +704,8 @@
   // ---------- RENDER: STATS ----------
   function renderStats(){
     const today = new Date();
-    let monthTotal = 0;
+    let installmentsMonth = 0;
+    let invoiceMonth = 0;
     let openTotal = 0;
     let cashMonth = 0;
 
@@ -606,18 +713,26 @@
       const info = computeInstallmentInfo(exp);
       if (info){
         openTotal += info.remainingAmount;
-        if (!info.finished) monthTotal += info.installmentValue;
-      } else {
+        if (!info.finished) installmentsMonth += info.installmentValue;
+      } else if (!exp.cardId){
+        // dinheiro / pix — sem ciclo de fatura, usa mês calendário
         const d = new Date(exp.date + "T00:00:00");
-        const isThisMonth = d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth();
-        if (isThisMonth){
-          monthTotal += exp.amount;
-          if (!exp.cardId) cashMonth += exp.amount;
+        if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()){
+          cashMonth += exp.amount;
+        }
+      } else {
+        // à vista / fatura manual em cartão — usa o ciclo de fechamento do cartão
+        const card = cardById(exp.cardId);
+        if (card){
+          const ref = referenceCycle(card);
+          const due = invoiceDueForDate(new Date(exp.date + "T00:00:00"), card);
+          if (due.year === ref.year && due.month === ref.month) invoiceMonth += exp.amount;
         }
       }
     });
 
-    $("statMonth").textContent = fmt(monthTotal);
+    $("statInstallmentsMonth").textContent = fmt(installmentsMonth);
+    $("statInvoiceMonth").textContent = fmt(invoiceMonth);
     $("statOpen").textContent = fmt(openTotal);
     $("statCards").textContent = state.cards.length;
     $("statCash").textContent = fmt(cashMonth);
@@ -632,19 +747,11 @@
     }
     grid.innerHTML = state.cards.map(c => {
       const due = nextDueDateForCard(c);
-      const today = new Date();
-      let monthAmount = 0;
-      state.expenses.filter(e => e.cardId === c.id).forEach(e => {
-        const info = computeInstallmentInfo(e);
-        if (info){
-          if (!info.finished) monthAmount += info.installmentValue;
-        } else {
-          const d = new Date(e.date + "T00:00:00");
-          if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()){
-            monthAmount += e.amount;
-          }
-        }
-      });
+      const breakdown = cardCycleBreakdown(c);
+      const limit = getLimit(c);
+      const openBalance = cardOpenBalance(c);
+      const pct = limit > 0 ? Math.min(100, Math.round((openBalance / limit) * 100)) : 0;
+      const barColor = pct >= 90 ? "#e07a6f" : (pct >= 70 ? "#f2d675" : "#ffffff");
       return `
         <div class="card-tile" style="background:${c.color}">
           <div class="card-actions">
@@ -653,9 +760,14 @@
           </div>
           <div class="cname">${escapeHtml(c.name)}</div>
           <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-            <div class="camount">${fmt(monthAmount)}<br><span style="font-size:10px;opacity:0.8;">este mês</span></div>
+            <div class="camount">${fmt(breakdown.total)}<br><span style="font-size:10px;opacity:0.8;">fatura atual</span></div>
             <div class="cdue">Vence<br><b>${c.dueDay}</b><span style="opacity:0.85;">${formatDate(due)}</span></div>
           </div>
+          ${limit > 0 ? `
+          <div class="limit-bar-wrap">
+            <div class="limit-bar-track"><div class="limit-bar-fill" style="width:${pct}%; background:${barColor}"></div></div>
+            <div class="limit-bar-label">${fmt(openBalance)} de ${fmt(limit)} usado (${pct}%)</div>
+          </div>` : ``}
           <div class="invoice-add">
             <input type="text" inputmode="decimal" placeholder="Valor da fatura" id="invoiceInput-${c.id}"
               onkeydown="if(event.key==='Enter'){event.preventDefault();FIN.addInvoiceAmount('${c.id}');}">
@@ -764,18 +876,23 @@
     e.preventDefault();
     const name = $("cardName").value.trim();
     const dueDay = parseInt($("cardDueDay").value, 10);
+    const closingDay = parseInt($("cardClosingDay").value, 10);
+    const limit = parseAmount($("cardLimit").value || "0") || 0;
     if (!name || !dueDay || dueDay < 1 || dueDay > 31) return;
+    if (!closingDay || closingDay < 1 || closingDay > 31) return;
 
     if (editingCardId){
       const card = cardById(editingCardId);
       if (card){
         card.name = name;
         card.dueDay = dueDay;
+        card.closingDay = closingDay;
+        card.limit = limit;
         card.color = selectedSwatch;
       }
       cancelCardEdit();
     } else {
-      state.cards.push({ id: uid(), name, dueDay, color: selectedSwatch });
+      state.cards.push({ id: uid(), name, dueDay, closingDay, limit, color: selectedSwatch });
       selectedSwatch = SWATCHES[(state.cards.length) % SWATCHES.length];
     }
     await saveData();
@@ -789,6 +906,8 @@
     editingCardId = id;
     $("cardName").value = card.name;
     $("cardDueDay").value = card.dueDay;
+    $("cardClosingDay").value = getClosingDay(card);
+    $("cardLimit").value = card.limit ? formatAmountForInput(card.limit) : "";
     selectedSwatch = card.color;
     $("cardFormTitle").textContent = "Editar cartão";
     $("cardSubmitBtn").textContent = "Salvar alterações";
